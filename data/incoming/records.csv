@@ -1,0 +1,9 @@
+employee_id,first_name,last_name,department,salary,hire_date,location
+EMP001,Alice,Johnson,Engineering,95000,2022-03-15,London
+EMP002,Bob,Williams,Finance,82000,2021-07-20,New York
+EMP003,Carol,Martinez,Operations,74000,2023-01-10,Singapore
+EMP004,David,Lee,Engineering,105000,2020-11-05,London
+EMP005,Eva,Thompson,HR,68000,2022-09-01,New York
+EMP006,Frank,Wilson,Sales,77000,2021-04-22,Dubai
+EMP007,Grace,Anderson,Engineering,98000,2023-06-15,London
+EMP008,Henry,Taylor,Finance,88000,2020-02-28,New York

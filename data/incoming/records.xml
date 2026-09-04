@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<products>
+  <product><sku>SKU001</sku><name>Widget A</name><category>Electronics</category><price>49.99</price><stock>250</stock></product>
+  <product><sku>SKU002</sku><name>Gadget B</name><category>Electronics</category><price>129.99</price><stock>80</stock></product>
+  <product><sku>SKU003</sku><name>Tool C</name><category>Hardware</category><price>34.50</price><stock>500</stock></product>
+  <product><sku>SKU004</sku><name>Device D</name><category>Electronics</category><price>299.00</price><stock>40</stock></product>
+  <product><sku>SKU005</sku><name>Component E</name><category>Hardware</category><price>12.75</price><stock>1200</stock></product>
+  <product><sku>SKU006</sku><name>Module F</name><category>Software</category><price>599.00</price><stock>999</stock></product>
+</products>

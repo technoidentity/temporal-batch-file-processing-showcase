@@ -1,0 +1,60 @@
+services:
+  temporal:
+    image: temporalio/temporal:1.8.2
+    container_name: batch-temporal
+    command: ["server", "start-dev", "--ip", "0.0.0.0", "--db-filename", "/home/temporal/temporal.db"]
+    ports:
+      - "7233:7233"
+      - "8233:8233"
+    volumes:
+      - temporal-data:/home/temporal
+    healthcheck:
+      test: ["CMD", "temporal", "operator", "cluster", "health", "--address", "127.0.0.1:7233"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+    restart: unless-stopped
+
+  app:
+    build: .
+    image: batch-file-processing:1.0.0
+    container_name: batch-app
+    ports:
+      - "8080:8080"
+    environment:
+      TEMPORAL_TARGET: temporal:7233
+      APP_DATA_DIR: /app/data
+      SERVER_PORT: 8080
+      # Pattern 1 real SFTP poller (SFTP GET -> fileArrived signal)
+      SFTP_ENABLED: "true"
+      SFTP_HOST: sftp
+      SFTP_PORT: "22"
+      SFTP_USER: batch
+      SFTP_PASSWORD: batch
+      SFTP_REMOTE_DIR: incoming
+      SFTP_DOWNLOAD_DIR: /app/data/incoming
+      SFTP_POLL_INTERVAL: 10s
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      temporal:
+        condition: service_healthy
+      sftp:
+        condition: service_started
+    restart: unless-stopped
+
+  # SFTP server the Pattern-1 poller watches. Files placed in ./sftp_data/incoming
+  # (host) appear under /home/batch/incoming (container) for the poller to GET.
+  sftp:
+    image: atmoz/sftp:alpine
+    container_name: batch-sftp
+    ports:
+      - "2222:22"
+    command: batch:batch:::incoming
+    volumes:
+      - ./sftp_data/incoming:/home/batch/incoming
+    restart: unless-stopped
+
+volumes:
+  temporal-data:

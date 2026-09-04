@@ -1,0 +1,7 @@
+[
+  {"order_id": "ORD001", "customer": "Alpha Corp", "product": "Enterprise Suite", "qty": 5, "unit_price": 2999.00, "total": 14995.00, "status": "CONFIRMED"},
+  {"order_id": "ORD002", "customer": "Beta Ltd",  "product": "Professional Pack", "qty": 10,"unit_price": 999.00,  "total": 9990.00,  "status": "CONFIRMED"},
+  {"order_id": "ORD003", "customer": "Gamma Inc", "product": "Starter Bundle",   "qty": 2, "unit_price": 499.00,  "total": 998.00,   "status": "PENDING"},
+  {"order_id": "ORD004", "customer": "Delta Co",  "product": "Enterprise Suite", "qty": 1, "unit_price": 2999.00, "total": 2999.00,  "status": "CONFIRMED"},
+  {"order_id": "ORD005", "customer": "Epsilon SA", "product": "Professional Pack","qty": 3, "unit_price": 999.00,  "total": 2997.00,  "status": "CONFIRMED"}
+]

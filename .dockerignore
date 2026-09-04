@@ -1,0 +1,14 @@
+target/
+.git/
+.idea/
+.cursor/
+*.iml
+*.pdf
+*.md
+claude.md
+VALIDATION_SUMMARY.txt
+ALL_PATTERNS_VALIDATION_REPORT.md
+ARCHITECTURE_VALIDATION_REPORT.md
+data/outgoing/
+data/checkpoints/
+data/quarantine/

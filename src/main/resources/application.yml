@@ -1,0 +1,181 @@
+spring:
+  application:
+    name: temporal-showcase
+
+app:
+  data:
+    dir: ${APP_DATA_DIR:./data}      # root for sample inputs + runtime output (state/, checkpoints/, outgoing/, quarantine/)
+
+server:
+  port: ${SERVER_PORT:8080}          # REST API port (note: the Temporal Web UI often also uses 8080)
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics  # actuator endpoints exposed under /actuator
+
+logging:
+  level:
+    com.example.temporalshowcase: INFO
+    io.temporal: WARN                 # keep the SDK quiet; raise to INFO/DEBUG when debugging Temporal
+
+# ── Temporal: everything externalized here — nothing hardcoded in the code ──────
+temporal:
+  connection:
+    target: ${TEMPORAL_TARGET:127.0.0.1:7233}          # gRPC endpoint. Cloud: <region>.<cloud>.api.temporal.io:7233
+    namespace: ${TEMPORAL_NAMESPACE:default}           # Temporal namespace. Cloud: <namespace>.<accountId>
+    tls: ${TEMPORAL_TLS:false}                          # enable TLS — required for Temporal Cloud
+    api-key: ${TEMPORAL_API_KEY:}                       # Cloud API key → sent as "Authorization: Bearer" (blank locally)
+    identity: ${TEMPORAL_IDENTITY:}                     # worker identity shown in the UI (blank = SDK default host@pid)
+
+  # Logical queue key -> Temporal task-queue name. ShowcaseWorker registers one
+  # worker per key; workflows/activities are pinned to a queue via TemporalRuntime.queue(key).
+  queues:
+    delayed-file: FILE_PROCESSING_QUEUE          # P1  signal + SLA
+    large-file: LARGE_FILE_QUEUE                 # P2  parent chunking workflow
+    chunk-processing: CHUNK_PROCESSING_QUEUE     # P2  per-chunk child workflow
+    chunk-retry: CHUNK_RETRY_QUEUE               # P2  chunk retry lane
+    circuit-breaker: CIRCUIT_BREAKER_QUEUE       # P3  empty-file circuit breaker
+    saga-recovery: SAGA_RECOVERY_QUEUE           # P4  corrupted-file saga
+    idempotency: IDEMPOTENCY_QUEUE               # P5  duplicate detection
+    multi-format: MULTI_FORMAT_QUEUE             # P6  format router + child processors
+    permission-escalation: PERMISSION_ESCALATION_QUEUE  # P7  permission escalation
+    resumable-transfer: RESUMABLE_TRANSFER_QUEUE # P8  normal + resumable transfer
+    rate-limiting: RATE_LIMITING_QUEUE           # P9  adaptive throttling
+    validation: VALIDATION_QUEUE                 # P10 multi-stage validation
+    locking: LOCKING_QUEUE                       # P11 distributed lock + lock-wait child
+    dependency-graph: DEPENDENCY_GRAPH_QUEUE     # P12 dependency graph + ordered/wait children
+
+  # Named activity policies (start-to-close timeout + retry) referenced by key in
+  # workflow code via TemporalRuntime.activity("<key>"). Retry fields:
+  #   initial-interval    — delay before the first retry
+  #   backoff-coefficient — multiplier applied to the interval each retry
+  #   maximum-interval    — cap on the retry delay
+  #   maximum-attempts    — total attempts incl. the first (1 = no retry)
+  # heartbeat-timeout is set ONLY on policies whose activities actually heartbeat
+  # (file chunk/content ops); adding it to non-heartbeating activities would fail them.
+  policies:
+    quick:            # fast state/log/order activities (circuit state, event logs)
+      start-to-close-timeout: 30s
+      retry: { initial-interval: 1s, backoff-coefficient: 2.0, maximum-interval: 10s, maximum-attempts: 3 }
+    file-ops:         # validate/stats/hash + process file content (heartbeats)
+      start-to-close-timeout: 30m
+      heartbeat-timeout: 30s
+      retry: { initial-interval: 1s, backoff-coefficient: 2.0, maximum-interval: 60s, maximum-attempts: 5 }
+    file-long:        # process file content under lock / in dependency order (heartbeats)
+      start-to-close-timeout: 2h
+      heartbeat-timeout: 30s
+      retry: { initial-interval: 1m, backoff-coefficient: 2.0, maximum-interval: 5m, maximum-attempts: 3 }
+    file-stats:       # quick stat/hash reads
+      start-to-close-timeout: 5m
+      retry: { initial-interval: 10s, backoff-coefficient: 2.0, maximum-interval: 1m, maximum-attempts: 3 }
+    chunk-download:   # P2 download a chunk (heartbeats)
+      start-to-close-timeout: 15m
+      heartbeat-timeout: 30s
+      retry: { initial-interval: 30s, backoff-coefficient: 2.0, maximum-interval: 5m, maximum-attempts: 3 }
+    chunk-process:    # P2 process a downloaded chunk (heartbeats)
+      start-to-close-timeout: 10m
+      heartbeat-timeout: 30s
+      retry: { initial-interval: 15s, backoff-coefficient: 2.0, maximum-interval: 2m, maximum-attempts: 3 }
+    aggregate:        # P2 combine chunk results
+      start-to-close-timeout: 30m
+      retry: { initial-interval: 1m, backoff-coefficient: 2.0, maximum-interval: 5m, maximum-attempts: 2 }
+    saga:             # P4 isolate/alert/repair/resend saga steps
+      start-to-close-timeout: 30m
+      retry: { initial-interval: 10s, backoff-coefficient: 2.0, maximum-interval: 5m, maximum-attempts: 3 }
+    transfer:         # P8 segmented (resumable) transfer + integrity checks
+      start-to-close-timeout: 15m
+      retry: { initial-interval: 5s, backoff-coefficient: 2.0, maximum-interval: 1m, maximum-attempts: 2 }
+    transfer-normal:  # P8 single-shot transfer (network-OK path)
+      start-to-close-timeout: 30m
+      retry: { initial-interval: 10s, backoff-coefficient: 2.0, maximum-interval: 2m, maximum-attempts: 3 }
+    validation:       # P10 stage validators + remediation activities
+      start-to-close-timeout: 20m
+      retry: { initial-interval: 10s, backoff-coefficient: 2.0, maximum-interval: 1m, maximum-attempts: 2 }
+    monitor:          # P9 resource-load probes (short, frequent)
+      start-to-close-timeout: 15s
+      retry: { initial-interval: 1s, backoff-coefficient: 2.0, maximum-interval: 5s, maximum-attempts: 3 }
+    lock-acquire:     # P11 single attempt — the workflow does its own backoff loop
+      start-to-close-timeout: 15s
+      retry: { initial-interval: 1s, backoff-coefficient: 2.0, maximum-interval: 5s, maximum-attempts: 1 }
+    lock-wait:        # P11 lock-wait child poll/release activities
+      start-to-close-timeout: 15s
+      retry: { initial-interval: 1s, backoff-coefficient: 2.0, maximum-interval: 5s, maximum-attempts: 2 }
+    permission:       # P7 permission check + auto-fix strategies
+      start-to-close-timeout: 10m
+      retry: { initial-interval: 5s, backoff-coefficient: 2.0, maximum-interval: 1m, maximum-attempts: 2 }
+    format-detect:    # P6 detect file format
+      start-to-close-timeout: 5m
+      retry: { initial-interval: 5s, backoff-coefficient: 2.0, maximum-interval: 1m, maximum-attempts: 2 }
+    format-parse:     # P6 parse/process a specific format
+      start-to-close-timeout: 1h
+      retry: { initial-interval: 5s, backoff-coefficient: 2.0, maximum-interval: 1m, maximum-attempts: 3 }
+    dependency:       # P12 graph build / dependency poll / ordered processing
+      start-to-close-timeout: 5m
+      retry: { initial-interval: 10s, backoff-coefficient: 2.0, maximum-interval: 1m, maximum-attempts: 3 }
+
+  # Pattern 1 DEFAULT SLA — how long FileProcessingWorkflow waits for the fileArrived
+  # signal before failing with SLA_TIMEOUT. Used when the REST caller does not pass a
+  # per-request slaTimeoutSeconds (e.g. /pattern1/signal-arrival, /start-waiting).
+  # NOTE: the SFTP poller uses its OWN deadline — see temporal.sftp.sla below.
+  sla:
+    file-arrival: ${SLA_FILE_ARRIVAL:24h}
+
+  # Per-pattern business knobs (thresholds, timeouts, attempts, sizes). Durations
+  # accept 30s/5m/2h; sizes accept 10MB/50KB. Nothing here is hardcoded in the code.
+  patterns:
+    large-file:            # Pattern 2 — chunking bounds
+      max-chunk: 100MB     # files at/under this size are processed as a single chunk
+      min-chunk: 10MB      # smallest chunk when splitting a larger file
+    circuit-breaker:       # Pattern 3 — empty-file breaker
+      recovery-timeout: 5m           # how long the circuit stays OPEN before a HALF_OPEN probe
+      window-size: 10                # sliding window: number of recent files considered
+      failure-rate-threshold: 0.50   # empty-rate above this (0.0–1.0) opens the circuit
+      min-samples: 3                 # minimum files in the window before the rate can trip OPEN
+    idempotency:           # Pattern 5 — duplicate detection
+      wait-poll-interval: 30s        # poll cadence while an in-progress duplicate finishes
+      in-progress-timeout: 2h        # max wait for an in-progress claim before giving up
+    permission:            # Pattern 7 — escalation
+      human-resolution-timeout: 4h   # bounded wait for the permissionResolved signal before escalating
+    transfer:              # Pattern 8 — resumable transfer
+      segment: 50KB                     # byte-range segment size per transfer step
+      network-recovery-timeout: 30m     # max time to keep retrying a lost connection
+      base-network-poll-interval: 30s   # initial wait between connectivity re-checks
+      max-restart-attempts: 3           # integrity-failure restarts from byte 0 before failing
+      max-workflow-timeout: 2h          # overall cap for the transfer workflow
+      max-network-recovery-attempts: 5  # connectivity re-checks before declaring failure
+    rate-limiting:         # Pattern 9 — adaptive throttling
+      high-load-threshold: 0.80         # weighted load (0.0–1.0) that triggers throttling
+      critical-load-threshold: 0.95     # weighted load that triggers the strictest tier
+      monitoring-interval: 30s          # gap between load-monitoring cycles
+      wait-for-resources-interval: 15s  # pause while waiting for load to drop
+      max-wait-cycles: 4                # monitoring cycles before giving up / escalating
+    validation:            # Pattern 10 — multi-stage quality
+      max-remediation-attempts: 3       # remediation loops before escalating to manual review
+    locking:               # Pattern 11 — distributed lock
+      lock-timeout: 30m                 # lock lease duration
+      max-lock-attempts: 3              # direct acquire attempts by the holder
+      wait-max-attempts: 4              # poll attempts by the lock-wait child before timing out
+      wait-max-timeout: 25s             # overall cap on the lock-wait child
+      wait-base-backoff: 3s             # base delay for the child's exponential backoff
+    dependency:            # Pattern 12 — dependency graph
+      poll-interval: 3s                 # cadence while waiting for missing upstream files
+      polls-until-ready: 2              # polls after which the (simulated) dependency arrives
+      max-polls: 8                      # polls before giving up on a dependency
+
+  # Pattern 1 SFTP poller (real SFTP GET → fileArrived signal) and Pattern 8 byte-range
+  # transfer. Disabled by default; enabled automatically under Docker.
+  sftp:
+    enabled: ${SFTP_ENABLED:false}                     # master switch for the poller + P8 SFTP mode
+    host: ${SFTP_HOST:localhost}                       # SFTP server host
+    port: ${SFTP_PORT:2222}                            # SFTP server port
+    username: ${SFTP_USER:batch}                       # SFTP username
+    password: ${SFTP_PASSWORD:batch}                   # SFTP password
+    remote-dir: ${SFTP_REMOTE_DIR:incoming}            # remote directory the poller lists/downloads from
+    download-dir: ${SFTP_DOWNLOAD_DIR:./data/incoming} # local dir where downloaded files land
+    poll-interval: ${SFTP_POLL_INTERVAL:10s}           # how often the poller checks the remote dir
+    # SLA the poller stamps on each workflow it starts for a discovered file. Distinct
+    # from temporal.sla.file-arrival (the REST default): the poller signals fileArrived
+    # right after start, so this is effectively a safety-net deadline for the SFTP path.
+    sla: ${SFTP_SLA:24h}

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<claims>
+  <claim>
+    <id>CLM001</id>
+    <policy_number>POL-12345</policy_number>
+    <claimant>John Smith</claimant>
+    <amount>15000.00</amount>
+    <currency>USD</currency>
+    <date>2026-08-31</date>
+    <status>SUBMITTED</status>
+    <description>Medical expenses claim - hospital stay</description>
+  </claim>
+  <claim>
+    <id>CLM002</id>
+    <policy_number>POL-67890</policy_number>
+    <claimant>Jane Doe</claimant>
+    <amount>3200.00</amount>
+    <currency>EUR</currency>
+    <date>2026-08-31</date>
+    <status>SUBMITTED</status>
+    <description>Vehicle damage claim - accident</description>
+  </claim>
+  <claim>
+    <id>CLM003</id>
+    <policy_number>POL-CORRUPT</policy_number>
+    <claimant>CORRUPTED_RECORD</claimant>
+    <amount>???INVALID???</amount>
+    <currency>XXX</currency>
+    <date>INVALID_DATE</date>
+    <status>CORRUPT</status>
+    <description>Data corruption detected in this record</description>
+  </claim>
+  <claim>
+    <id>CLM004</id>
+    <policy_number>POL-24680</policy_number>
+    <claimant>Robert Brown</claimant>
+    <amount>8750.00</amount>
+    <currency>GBP</currency>
+    <date>2026-08-31</date>
+    <status>SUBMITTED</status>
+    <description>Property damage claim - storm</description>
+  </claim>
+</claims>

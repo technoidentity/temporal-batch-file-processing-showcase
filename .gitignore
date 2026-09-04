@@ -1,0 +1,55 @@
+# Maven / Java
+target/
+*.class
+*.jar
+*.war
+*.ear
+hs_err_pid*
+replay_pid*
+
+# Spring Boot
+*.log
+logs/
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.project
+.classpath
+.settings/
+.vscode/
+*.swp
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+.docker/
+
+# Env / secrets (keep samples in git; ignore local overrides)
+.env
+.env.local
+application-local.yml
+
+# Generated file-processing output (samples in data/incoming/ stay tracked)
+data/outgoing/
+data/checkpoints/
+data/quarantine/
+data/state/
+data/incoming/*.repaired
+
+# local delivery tracking (not committed)
+PLAN.md
+
+# personal local dev scripts + their runtime dir (not committed)
+scripts/dev.sh
+scripts/wf.sh
+.dev/
+
+# SFTP staging (transient); home samples are tracked
+sftp_data/incoming/*
+!sftp_data/incoming/.gitkeep

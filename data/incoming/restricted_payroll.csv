@@ -1,0 +1,9 @@
+employee_id,full_name,department,base_salary,bonus,total_compensation,grade,tax_band
+EMP001,Alice Johnson,Engineering,95000,12000,107000,L5,40%
+EMP002,Bob Williams,Finance,82000,9000,91000,L4,40%
+EMP003,Carol Martinez,Operations,74000,6000,80000,L3,20%
+EMP004,David Lee,Engineering,105000,15000,120000,L6,45%
+EMP005,Eva Thompson,HR,68000,5000,73000,L3,20%
+EMP006,Frank Wilson,Sales,77000,18000,95000,L4,40%
+EMP007,Grace Anderson,Engineering,98000,13000,111000,L5,40%
+EMP008,Henry Taylor,Finance,88000,10000,98000,L4,40%
